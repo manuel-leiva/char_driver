@@ -56,7 +56,41 @@ echo "hello kernel" > /dev/char_dev
 cat /dev/char_dev
 ```
 
-5. Read or update the `message` sysfs parameter:
+5. Clear the stored message with the custom `ioctl`:
+
+```c
+#include <fcntl.h>
+#include <linux/ioctl.h>
+#include <stdio.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+#define CHAR_DRIVER_IOCTL_MAGIC 'k'
+#define CHAR_DRIVER_IOCTL_CLEAR_MESSAGE _IO(CHAR_DRIVER_IOCTL_MAGIC, 0)
+
+int main(void)
+{
+    int fd = open("/dev/char_dev", O_RDWR);
+
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    if (ioctl(fd, CHAR_DRIVER_IOCTL_CLEAR_MESSAGE) < 0) {
+        perror("ioctl");
+        close(fd);
+        return 1;
+    }
+
+    close(fd);
+    return 0;
+}
+```
+
+After calling the `ioctl`, reading from `/dev/char_dev` returns EOF until a new message is written through the device or sysfs.
+
+6. Read or update the `message` sysfs parameter:
 
 ```bash
 cat /sys/module/char_driver/parameters/message
@@ -64,7 +98,7 @@ echo "updated from sysfs" | sudo tee /sys/module/char_driver/parameters/message
 cat /dev/char_dev
 ```
 
-6. Remove the module when finished:
+7. Remove the module when finished:
 
 ```bash
 sudo rmmod char_driver
@@ -75,4 +109,5 @@ sudo rmmod char_driver
 - The device name registered by the driver is `char_dev`.
 - The module requests a dynamic major number at load time, so the value can change between runs.
 - The driver stores up to 255 bytes from the last write and returns that message on read.
+- The custom `ioctl` command `CHAR_DRIVER_IOCTL_CLEAR_MESSAGE` clears the stored message.
 - The module parameter `message` is exposed through `/sys/module/char_driver/parameters/message`.
