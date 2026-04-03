@@ -2,13 +2,34 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
-
 #define DEVICE_NAME "char_dev"
 #define CLASS_NAME  "char_class"
 
 static int major_number;
 static char message[256] = {0};
 static short message_size;
+static struct kparam_string message_param = {
+    .maxlen = sizeof(message),
+    .string = message,
+};
+
+static int message_param_set(const char *val, const struct kernel_param *kp)
+{
+    int ret = param_set_copystring(val, kp);
+
+    if (ret == 0)
+        message_size = strnlen(message, sizeof(message));
+
+    return ret;
+}
+
+static const struct kernel_param_ops message_ops = {
+    .set = message_param_set,
+    .get = param_get_string, /* Use default getter */
+};
+
+module_param_cb(message, &message_ops, &message_param, 0644);
+MODULE_PARM_DESC(message, "Message exposed by the char driver");
 
 static int dev_open(struct inode *, struct file *);
 static int dev_release(struct inode *, struct file *);
@@ -21,26 +42,6 @@ static struct file_operations fops = {
     .write = dev_write,
     .release = dev_release,
 };
-
-static int __init char_init(void)
-{
-    printk(KERN_INFO "Char: Initializing\n");
-
-    major_number = register_chrdev(0, DEVICE_NAME, &fops);
-    if (major_number < 0) {
-        printk(KERN_ALERT "Failed to register a major number\n");
-        return major_number;
-    }
-
-    printk(KERN_INFO "Registered correctly with major number %d\n", major_number);
-    return 0;
-}
-
-static void __exit char_exit(void)
-{
-    unregister_chrdev(major_number, DEVICE_NAME);
-    printk(KERN_INFO "Char: Goodbye\n");
-}
 
 static int dev_open(struct inode *inodep, struct file *filep)
 {
@@ -95,6 +96,28 @@ static ssize_t dev_write(struct file *filep,
 
     return to_copy;
 }
+
+static int __init char_init(void)
+{
+    printk(KERN_INFO "Char: Initializing\n");
+    message_size = strnlen(message, sizeof(message));
+
+    major_number = register_chrdev(0, DEVICE_NAME, &fops);
+    if (major_number < 0) {
+        printk(KERN_ALERT "Failed to register a major number\n");
+        return major_number;
+    }
+
+    printk(KERN_INFO "Registered correctly with major number %d\n", major_number);
+    return 0;
+}
+
+static void __exit char_exit(void)
+{
+    unregister_chrdev(major_number, DEVICE_NAME);
+    printk(KERN_INFO "Char: Goodbye\n");
+}
+
 
 module_init(char_init);
 module_exit(char_exit);

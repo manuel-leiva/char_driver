@@ -30,6 +30,12 @@ make clean
 sudo insmod char_driver.ko
 ```
 
+You can also set the initial message when loading the module:
+
+```bash
+sudo insmod char_driver.ko message="hello from sysfs"
+```
+
 2. Check the kernel log and note the assigned major number:
 
 ```bash
@@ -50,7 +56,15 @@ echo "hello kernel" > /dev/char_dev
 cat /dev/char_dev
 ```
 
-5. Remove the module when finished:
+5. Read or update the `message` sysfs parameter:
+
+```bash
+cat /sys/module/char_driver/parameters/message
+echo "updated from sysfs" | sudo tee /sys/module/char_driver/parameters/message
+cat /dev/char_dev
+```
+
+6. Remove the module when finished:
 
 ```bash
 sudo rmmod char_driver
@@ -61,3 +75,4 @@ sudo rmmod char_driver
 - The device name registered by the driver is `char_dev`.
 - The module requests a dynamic major number at load time, so the value can change between runs.
 - The driver stores up to 255 bytes from the last write and returns that message on read.
+- The module parameter `message` is exposed through `/sys/module/char_driver/parameters/message`.
