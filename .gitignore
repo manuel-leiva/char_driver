@@ -1,3 +1,9 @@
+# Binaries
+app/ioctl_app
+
+# Codex
+.codex
+
 # Prerequisites
 *.d
 

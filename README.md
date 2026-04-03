@@ -4,13 +4,16 @@ Simple Linux character driver example implemented as an out-of-tree kernel modul
 
 ## Project structure
 
-- `char_driver.c`: character driver source code
-- `Makefile`: kernel module build rules
-- `char_driver.ko`: compiled kernel module generated after `make`
+- `driver/char_driver.c`: character driver source code
+- `driver/Makefile`: kernel module build rules
+- `Makefile`: top-level build entry point for the driver and userspace app
+- `app/ioctl_app.c`: userspace example for the custom `ioctl`
+- `app/Makefile`: build rules for the userspace `ioctl` example
+- `driver/char_driver.ko`: compiled kernel module generated after `make`
 
 ## Build
 
-Compile the module with:
+Compile the driver and userspace app with:
 
 ```bash
 make
@@ -27,18 +30,19 @@ make clean
 1. Insert the module:
 
 ```bash
-sudo insmod char_driver.ko
+sudo insmod driver/char_driver.ko
 ```
 
 You can also set the initial message when loading the module:
 
 ```bash
-sudo insmod char_driver.ko message="hello from sysfs"
+sudo insmod driver/char_driver.ko message="hello from sysfs"
 ```
 
 2. Check the kernel log and note the assigned major number:
 
 ```bash
+lsmod | grep char_driver
 dmesg | tail
 ```
 
@@ -56,7 +60,16 @@ echo "hello kernel" > /dev/char_dev
 cat /dev/char_dev
 ```
 
-5. Read or update the `message` sysfs parameter:
+5. Clear the stored message with the custom `ioctl`:
+
+```bash
+make -C app
+./app/ioctl_app
+```
+
+After calling the `ioctl`, reading from `/dev/char_dev` returns EOF until a new message is written through the device or sysfs.
+
+6. Read or update the `message` sysfs parameter:
 
 ```bash
 cat /sys/module/char_driver/parameters/message
@@ -64,7 +77,7 @@ echo "updated from sysfs" | sudo tee /sys/module/char_driver/parameters/message
 cat /dev/char_dev
 ```
 
-6. Remove the module when finished:
+7. Remove the module when finished:
 
 ```bash
 sudo rmmod char_driver
@@ -75,4 +88,5 @@ sudo rmmod char_driver
 - The device name registered by the driver is `char_dev`.
 - The module requests a dynamic major number at load time, so the value can change between runs.
 - The driver stores up to 255 bytes from the last write and returns that message on read.
+- The custom `ioctl` command `CHAR_DRIVER_IOCTL_CLEAR_MESSAGE` clears the stored message.
 - The module parameter `message` is exposed through `/sys/module/char_driver/parameters/message`.

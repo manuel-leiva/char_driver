@@ -2,8 +2,12 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/ioctl.h>
+#include <linux/uaccess.h>
 #define DEVICE_NAME "char_dev"
 #define CLASS_NAME  "char_class"
+#define CHAR_DRIVER_IOCTL_MAGIC 'k'
+#define CHAR_DRIVER_IOCTL_CLEAR_MESSAGE _IO(CHAR_DRIVER_IOCTL_MAGIC, 0)
 
 static int major_number;
 static char message[256] = {0};
@@ -35,11 +39,13 @@ static int dev_open(struct inode *, struct file *);
 static int dev_release(struct inode *, struct file *);
 static ssize_t dev_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t dev_write(struct file *, const char __user *, size_t, loff_t *);
+static long dev_ioctl(struct file *, unsigned int, unsigned long);
 
 static struct file_operations fops = {
     .open = dev_open,
     .read = dev_read,
     .write = dev_write,
+    .unlocked_ioctl = dev_ioctl,
     .release = dev_release,
 };
 
@@ -95,6 +101,19 @@ static ssize_t dev_write(struct file *filep,
     printk(KERN_INFO "Received %zu characters from the user\n", to_copy);
 
     return to_copy;
+}
+
+static long dev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+{
+    switch (cmd) {
+    case CHAR_DRIVER_IOCTL_CLEAR_MESSAGE:
+        message[0] = '\0';
+        message_size = 0;
+        printk(KERN_INFO "Message cleared via ioctl\n");
+        return 0;
+    default:
+        return -ENOTTY;
+    }
 }
 
 static int __init char_init(void)
