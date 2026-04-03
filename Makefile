@@ -1,10 +1,9 @@
-obj-m += char_driver.o
-
-KDIR := /lib/modules/$(shell uname -r)/build
-PWD  := $(shell pwd)
-
 all:
-	make -C $(KDIR) M=$(PWD) modules
+	$(MAKE) -C driver
+	$(MAKE) -C app
 
 clean:
-	make -C $(KDIR) M=$(PWD) clean
+	$(MAKE) -C driver clean
+	$(MAKE) -C app clean
+
+.PHONY: all clean

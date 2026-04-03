@@ -4,13 +4,16 @@ Simple Linux character driver example implemented as an out-of-tree kernel modul
 
 ## Project structure
 
-- `char_driver.c`: character driver source code
-- `Makefile`: kernel module build rules
-- `char_driver.ko`: compiled kernel module generated after `make`
+- `driver/char_driver.c`: character driver source code
+- `driver/Makefile`: kernel module build rules
+- `Makefile`: top-level build entry point for the driver and userspace app
+- `app/ioctl_app.c`: userspace example for the custom `ioctl`
+- `app/Makefile`: build rules for the userspace `ioctl` example
+- `driver/char_driver.ko`: compiled kernel module generated after `make`
 
 ## Build
 
-Compile the module with:
+Compile the driver and userspace app with:
 
 ```bash
 make
@@ -27,18 +30,19 @@ make clean
 1. Insert the module:
 
 ```bash
-sudo insmod char_driver.ko
+sudo insmod driver/char_driver.ko
 ```
 
 You can also set the initial message when loading the module:
 
 ```bash
-sudo insmod char_driver.ko message="hello from sysfs"
+sudo insmod driver/char_driver.ko message="hello from sysfs"
 ```
 
 2. Check the kernel log and note the assigned major number:
 
 ```bash
+lsmod | grep char_driver
 dmesg | tail
 ```
 
@@ -58,34 +62,9 @@ cat /dev/char_dev
 
 5. Clear the stored message with the custom `ioctl`:
 
-```c
-#include <fcntl.h>
-#include <linux/ioctl.h>
-#include <stdio.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-
-#define CHAR_DRIVER_IOCTL_MAGIC 'k'
-#define CHAR_DRIVER_IOCTL_CLEAR_MESSAGE _IO(CHAR_DRIVER_IOCTL_MAGIC, 0)
-
-int main(void)
-{
-    int fd = open("/dev/char_dev", O_RDWR);
-
-    if (fd < 0) {
-        perror("open");
-        return 1;
-    }
-
-    if (ioctl(fd, CHAR_DRIVER_IOCTL_CLEAR_MESSAGE) < 0) {
-        perror("ioctl");
-        close(fd);
-        return 1;
-    }
-
-    close(fd);
-    return 0;
-}
+```bash
+make -C app
+./app/ioctl_app
 ```
 
 After calling the `ioctl`, reading from `/dev/char_dev` returns EOF until a new message is written through the device or sysfs.
